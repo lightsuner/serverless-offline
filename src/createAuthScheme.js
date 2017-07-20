@@ -15,7 +15,7 @@ module.exports = function createAuthScheme(authFun, funRuntime, funName, endpoin
   let populatedAuthFun;
   try {
     populatedAuthFun = authFun.toObjectPopulated({
-      stage:  options.stage,
+      stage: options.stage,
       region: options.region,
     });
   } catch (err) {
@@ -86,16 +86,42 @@ module.exports = function createAuthScheme(authFun, funRuntime, funName, endpoin
         }
 
         const onSuccess = (policy) => {
-        // Validate that the policy document has the principalId set
+          // Validate that the policy document has the principalId set
           if (!policy.principalId) {
             serverlessLog(`Authorization response did not include a principalId: (λ: ${authFunName})`, err);
             return reply(Boom.forbidden('No principalId set on the Response'));
           }
 
+          if (typeof policy.principalId !== 'string') {
+            serverlessLog(`Authorization response error: principalId can be only a String: (λ: ${authFunName})`, err);
+            return reply(Boom.forbidden('principalId is not a string'));
+          }
+
+          const continueData = { credentials: { user: policy.principalId } };
+
+          if (policy.context) {
+            for (const key in policy.context) {
+              if (!Object.prototype.hasOwnProperty.call(policy.context, key)) {
+                continue;
+              }
+
+              const allowedTypes = ['number', 'string', 'boolean'];
+              const keyType = typeof policy.context[key];
+
+              if (!allowedTypes.includes(keyType)) {
+                serverlessLog(`Context key ${key} has type ${keyType}, allowed only (${allowedTypes.join(', ')}): (λ: ${authFunName})`, err);
+                return reply(Boom.forbidden('Not allowed type of context key'));
+              }
+            }
+
+            // set context data
+            continueData.credentials.context = policy.context;
+          }
+
           serverlessLog(`Authorization function returned a successful response: (λ: ${authFunName})`, policy);
 
           // Set the credentials for the rest of the pipeline
-          return reply.continue({ credentials: { user: policy.principalId } });
+          return reply.continue(continueData);
         };
 
         if (result && typeof result.then === 'function' && typeof result.catch === 'function') {

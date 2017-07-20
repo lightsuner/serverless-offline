@@ -34,12 +34,18 @@ module.exports = function createVelocityContext(request, options, payload) {
     headers[key.replace(/((?:^|-)[a-z])/g, x => x.toUpperCase())] = request.headers[key];
   }
 
+  let authorizerData = {
+    principalId: authPrincipalId || process.env.PRINCIPAL_ID || 'offlineContext_authorizer_principalId', // See #24
+  };
+
+  if (request.auth && request.auth.credentials && request.auth.credentials.context) {
+    authorizerData = Object.assign({}, request.auth.credentials.context, authorizerData);
+  }
+
   return {
     context: {
       apiId:      'offlineContext_apiId',
-      authorizer: {
-        principalId: authPrincipalId || process.env.PRINCIPAL_ID || 'offlineContext_authorizer_principalId', // See #24
-      },
+      authorizer: authorizerData,
       httpMethod: request.method.toUpperCase(),
       identity:   {
         accountId:                     'offlineContext_accountId',
