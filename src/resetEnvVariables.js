@@ -10,4 +10,4 @@ module.exports = (oldEnvVars, newEnvVars) => {
   for (let key in newEnvVars) { // eslint-disable-line prefer-const
     process.env[key] = newEnvVars[key];
   }
-}
+};
