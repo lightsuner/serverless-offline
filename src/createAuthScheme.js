@@ -70,7 +70,7 @@ module.exports = function createAuthScheme(authFun, funRuntime, funName, endpoin
       try {
         handler = functionHelper.createHandler(funRuntime, funOptions, options);
       } catch (err) {
-        return reply(Boom.badImplementation(null, `Error while loading ${authFunName}`));
+        return reply(Boom.badImplementation(err, `Error while loading ${authFunName}`));
       }
 
       // Creat the Lambda Context for the Auth function
@@ -86,6 +86,16 @@ module.exports = function createAuthScheme(authFun, funRuntime, funName, endpoin
         }
 
         const onSuccess = (policy) => {
+
+          const jsonPolicy = JSON.stringify(policy);
+
+          const invalidSymbolPosition = jsonPolicy.indexOf('\\"');
+
+          if (invalidSymbolPosition !== -1) {
+            serverlessLog(`Invalid auth data at position ${invalidSymbolPosition}: (λ: ${authFunName})`, err);
+            return reply(Boom.badImplementation(`Invalid auth data at position ${invalidSymbolPosition}. Data: ${jsonPolicy}`));
+          }
+
           // Validate that the policy document has the principalId set
           if (!policy.principalId) {
             serverlessLog(`Authorization response did not include a principalId: (λ: ${authFunName})`, err);
@@ -94,7 +104,7 @@ module.exports = function createAuthScheme(authFun, funRuntime, funName, endpoin
 
           if (typeof policy.principalId !== 'string') {
             serverlessLog(`Authorization response error: principalId can be only a String: (λ: ${authFunName})`, err);
-            return reply(Boom.forbidden('principalId is not a string'));
+            return reply(Boom.badImplementation('principalId is not a string'));
           }
 
           const continueData = { credentials: { user: policy.principalId } };
@@ -110,7 +120,7 @@ module.exports = function createAuthScheme(authFun, funRuntime, funName, endpoin
 
               if (!allowedTypes.includes(keyType)) {
                 serverlessLog(`Context key ${key} has type ${keyType}, allowed only (${allowedTypes.join(', ')}): (λ: ${authFunName})`, err);
-                return reply(Boom.forbidden('Not allowed type of context key'));
+                return reply(Boom.badImplementation('Not allowed context key ${keyType}'));
               }
             }
 

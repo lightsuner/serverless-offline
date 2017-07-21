@@ -408,7 +408,7 @@ module.exports = S => {
               let handler; // The lambda function
 
               try {
-                handler = functionHelper.createHandler(funOptions, this.options);
+                handler = functionHelper.createHandler(funRuntime, funOptions, this.options);
               } catch (err) {
                 return this._reply500(response, `Error while loading ${funName}`, err, requestId);
               }
