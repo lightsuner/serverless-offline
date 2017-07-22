@@ -85,6 +85,22 @@ module.exports = function createAuthScheme(authFun, funRuntime, funName, endpoin
           return onError(err);
         }
 
+        const responseHasDeny = (statements) => {
+          for (const statement of statements) {
+            if (statement.Effect === 'Deny') {
+              return true;
+            }
+          }
+
+          return false;
+        };
+
+        if (!result || !result.policyDocument
+          || !result.policyDocument.Statement || responseHasDeny(result.policyDocument.Statement)) {
+          serverlessLog(`Authorization function has 'Deny' statement: (λ: ${authFunName})`);
+          return reply(Boom.forbidden('User is not authorized to access this resource'));
+        }
+
         const onSuccess = (policy) => {
 
           const jsonPolicy = JSON.stringify(policy);
